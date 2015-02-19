@@ -1,0 +1,1 @@
+call nuget pack src\Shields.Graphs\Shields.Graphs.csproj -IncludeReferencedProjects -Verbosity detailed
