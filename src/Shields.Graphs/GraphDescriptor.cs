@@ -12,5 +12,10 @@ namespace Shields.Graphs
         {
             return new FunctionalGraphDescriptor<T, K>(key, next);
         }
+
+        public static IWeightedGraphDescriptor<T, K> CreateWeighted<T, K>(Func<T, K> key, Func<T, IEnumerable<IWeighted<T>>> next)
+        {
+            return new FunctionalWeightedGraphDescriptor<T, K>(key, next);
+        }
     }
 }

@@ -9,32 +9,58 @@ namespace Shields.Graphs.Tests
     [TestClass]
     public class GraphTests
     {
-        private static Func<T, IEnumerable<T>> CreateNext<T>(Dictionary<T, IEnumerable<T>> lookup)
+        private static Func<T, U> F<T, U>(Dictionary<T, U> lookup, Func<U> defaultValue = null)
         {
-            return node =>
+            return key =>
             {
-                IEnumerable<T> result;
-                if (lookup.TryGetValue(node, out result))
+                if (defaultValue == null)
+                {
+                    return lookup[key];
+                }
+
+                U result;
+                if (lookup.TryGetValue(key, out result))
                 {
                     return result;
                 }
                 else
                 {
-                    return Enumerable.Empty<T>();
+                    return defaultValue();
                 }
             };
         }
 
-        private static IEnumerable<T> A<T>(params T[] items)
+        private static Func<T, IEnumerable<U>> Function<T, U>(Dictionary<T, IEnumerable<U>> lookup)
         {
-            return items;
+            return key =>
+            {
+                IEnumerable<U> result;
+                if (lookup.TryGetValue(key, out result))
+                {
+                    return result;
+                }
+                else
+                {
+                    return Enumerable.Empty<U>();
+                }
+            };
+        }
+
+        private static IWeighted<T> W<T>(T node, double weight)
+        {
+            return new Weighted<T>(node, weight);
+        }
+
+        private static List<T> A<T>(params T[] items)
+        {
+            return items.ToList();
         }
 
         [TestMethod]
         public void DepthFirstTraversalIsLazy()
         {
             var guid = Guid.NewGuid();
-            var descriptor = GraphDescriptor.Create<int, int>(n => n, CreateNext(new Dictionary<int, IEnumerable<int>>
+            var descriptor = GraphDescriptor.Create(n => n, Function(new Dictionary<int, IEnumerable<int>>
             {
                 { 0, A(1, 2) },
                 { 1, A(3, 4) },
@@ -65,10 +91,134 @@ namespace Shields.Graphs.Tests
         }
 
         [TestMethod]
-        public void BreadthFirstTraversalIsCorrect()
+        public void UniformCostSearch1()
         {
-            var descriptor = new Mock<IGraphDescriptor<char, int>>();
-            
+            var path = UniformCostSearch('A', 'F',
+                new Dictionary<char, IEnumerable<IWeighted<char>>>
+                {
+                    { 'A', A(W('B', 4), W('C', 2)) },
+                    { 'B', A(W('C', 5), W('D', 10)) },
+                    { 'C', A(W('E', 3)) },
+                    { 'D', A(W('F', 11)) },
+                    { 'E', A(W('D', 4)) }
+                });
+
+            CollectionAssert.AreEqual("ACEDF".ToList(), path.Value.ToList());
+            Assert.AreEqual(20, path.Weight);
+        }
+
+        [TestMethod]
+        public void UniformCostSearch2()
+        {
+            var path = UniformCostSearch('A', 'D',
+                new Dictionary<char, IEnumerable<IWeighted<char>>>
+                {
+                    { 'A', A(W('B', 0), W('C', 1)) },
+                    { 'B', A(W('C', 0)) },
+                    { 'C', A(W('D', 2)) }
+                });
+
+            CollectionAssert.AreEqual("ABCD".ToList(), path.Value.ToList());
+            Assert.AreEqual(2, path.Weight);
+        }
+
+        [TestMethod]
+        public void AStar1()
+        {
+            var path = AStar(
+                'A', 'F',
+                new Dictionary<char, IEnumerable<IWeighted<char>>>
+                {
+                    { 'A', A(W('B', 4), W('C', 2)) },
+                    { 'B', A(W('C', 5), W('D', 10)) },
+                    { 'C', A(W('E', 3)) },
+                    { 'D', A(W('F', 11)) },
+                    { 'E', A(W('D', 4)) }
+                },
+                true, new Dictionary<char, double>
+                {
+                    { 'A', 20 },
+                    { 'B', 21 },
+                    { 'C', 18 },
+                    { 'D', 11 },
+                    { 'E', 15 },
+                    { 'F', 0 }
+                });
+
+            CollectionAssert.AreEqual("ACEDF".ToList(), path.Value.ToList());
+            Assert.AreEqual(20, path.Weight);
+        }
+
+        [TestMethod]
+        public void AStarFailsIfNotInformedOfInconsistentHeuristic()
+        {
+            var path = AStar('A', 'D',
+                new Dictionary<char, IEnumerable<IWeighted<char>>>
+                {
+                    { 'A', A(W('B', 0), W('C', 1)) },
+                    { 'B', A(W('C', 0)) },
+                    { 'C', A(W('D', 2)) }
+                },
+                true, new Dictionary<char, double>
+                {
+                    { 'A', 0 },
+                    { 'B', 2 },
+                    { 'C', 0 },
+                    { 'D', 0 }
+                });
+
+            CollectionAssert.AreEqual("ACD".ToList(), path.Value.ToList());
+            Assert.AreEqual(3, path.Weight);
+        }
+
+        [TestMethod]
+        public void AStarSucceedsIfInformedOfInconsistentHeuristic()
+        {
+            var path = AStar('A', 'D',
+                new Dictionary<char, IEnumerable<IWeighted<char>>>
+                {
+                    { 'A', A(W('B', 0), W('C', 1)) },
+                    { 'B', A(W('C', 0)) },
+                    { 'C', A(W('D', 2)) }
+                },
+                false, new Dictionary<char, double>
+                {
+                    { 'A', 0 },
+                    { 'B', 2 },
+                    { 'C', 0 },
+                    { 'D', 0 }
+                });
+
+            CollectionAssert.AreEqual("ABCD".ToList(), path.Value.ToList());
+            Assert.AreEqual(2, path.Weight);
+        }
+
+        private IWeighted<IEnumerable<char>> UniformCostSearch(
+            char start, char goal,
+            Dictionary<char, IEnumerable<IWeighted<char>>> next)
+        {
+            var descriptor = GraphDescriptor.CreateWeighted(n => n, Function(next));
+
+            return Graph.UniformCostSearch(
+                EnumerableEx.Return(new Weighted<char>(start, 0)),
+                descriptor.Key,
+                descriptor.Next,
+                n => n == goal);
+        }
+
+        private IWeighted<IEnumerable<char>> AStar(
+            char start, char goal,
+            Dictionary<char, IEnumerable<IWeighted<char>>> next,
+            bool isConsistent, Dictionary<char, double> heuristic)
+        {
+            var descriptor = GraphDescriptor.CreateWeighted(n => n, Function(next));
+
+            return Graph.AStar(
+                EnumerableEx.Return(new Weighted<char>(start, 0)),
+                descriptor.Key,
+                descriptor.Next,
+                Heuristic.Create(F(heuristic), isConsistent),
+                n => n == goal);
         }
     }
 }
