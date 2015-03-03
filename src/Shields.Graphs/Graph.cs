@@ -10,13 +10,13 @@ namespace Shields.Graphs
     /// </summary>
     public static class Graph
     {
-        private static List<T> ReconstructPath<K, T>(Func<T, K> key, Dictionary<K, T> cameFrom, T current)
+        private static List<T> ReconstructPath<K, T>(Func<T, K> key, Dictionary<K, T> came_from, T node)
         {
             var path = new List<T>();
-            path.Add(current);
-            while (cameFrom.TryGetValue(key(current), out current))
+            path.Add(node);
+            while (came_from.TryGetValue(key(node), out node))
             {
-                path.Add(current);
+                path.Add(node);
             }
             path.Reverse();
             return path;
@@ -24,50 +24,51 @@ namespace Shields.Graphs
 
         public static Weighted<IEnumerable<T>> UniformCostSearch<T, K>(this IEnumerable<IWeighted<T>> sources, Func<T, K> key, Func<T, IEnumerable<IWeighted<T>>> next, Func<T, bool> goal)
         {
-            var cameFrom = new Dictionary<K, T>();
-            var frontierLookup = new Dictionary<K, PairingHeap<double, T>.Handle>();
-            var frontier = new PairingHeap<double, T>();
-            var visited = new HashSet<K>();
+            var came_from = new Dictionary<K, T>();
+            var open_lookup = new Dictionary<K, PairingHeap<double, T>.Handle>();
+            var open_queue = new PairingHeap<double, T>();
+            var closed = new HashSet<K>();
             foreach (var source in sources)
             {
                 var u = source.Value;
                 var g_u = source.Weight;
-                frontierLookup.Add(key(u), frontier.Insert(g_u, u));
+                open_lookup.Add(key(u), open_queue.Insert(g_u, u));
             }
-            while (!frontier.IsEmpty)
+            while (!open_queue.IsEmpty)
             {
-                var handle_u = frontier.ExtractMin();
+                var handle_u = open_queue.GetMin();
                 var u = handle_u.Value;
                 var key_u = key(u);
                 var g_u = handle_u.Key;
                 if (goal(u))
                 {
-                    var path = ReconstructPath(key, cameFrom, u);
+                    var path = ReconstructPath(key, came_from, u);
                     return new Weighted<IEnumerable<T>>(path, g_u);
                 }
-                frontierLookup.Remove(key_u);
-                visited.Add(key_u);
+                open_lookup.Remove(key_u);
+                open_queue.Delete(handle_u);
+                closed.Add(key_u);
                 foreach (var uv in next(u))
                 {
                     var v = uv.Value;
                     var key_v = key(v);
-                    if (visited.Contains(key_v))
+                    if (closed.Contains(key_v))
                     {
                         continue;
                     }
                     PairingHeap<double, T>.Handle v_handle;
                     var g_uv = g_u + uv.Weight;
-                    if (frontierLookup.TryGetValue(key_v, out v_handle))
+                    if (open_lookup.TryGetValue(key_v, out v_handle))
                     {
-                        if (frontier.TryDecreaseKey(v_handle, g_uv))
+                        if (open_queue.TryDecreaseKey(v_handle, g_uv))
                         {
-                            cameFrom[key_v] = u;
+                            came_from[key_v] = u;
                         }
                     }
                     else
                     {
-                        frontierLookup.Add(key_v, frontier.Insert(g_uv, v));
-                        cameFrom[key_v] = u;
+                        open_lookup.Add(key_v, open_queue.Insert(g_uv, v));
+                        came_from[key_v] = u;
                     }
                 }
             }
@@ -116,34 +117,32 @@ namespace Shields.Graphs
             Func<T, double> heuristic,
             Func<T, bool> goal)
         {
-            var cameFrom = new Dictionary<K, T>();
+            var came_from = new Dictionary<K, T>();
+            var open_queue = new PairingHeap<double, AStarOpen<T>>();
+            var open_lookup = new Dictionary<K, PairingHeap<double, AStarOpen<T>>.Handle>();
             var closed = new HashSet<K>();
-            var openLookup = new Dictionary<K, PairingHeap<double, T>.Handle>();
-            var open = new PairingHeap<double, T>();
-            var g = new Dictionary<K, double>();
-            var f = new Dictionary<K, double>();
             foreach (var source in sources)
             {
                 var u = source.Value;
                 var key_u = key(u);
                 var g_u = source.Weight;
                 var f_u = g_u + heuristic(u);
-                openLookup.Add(key_u, open.Insert(f_u, u));
-                g[key_u] = g_u;
-                f[key_u] = f_u;
+                var open_u = new AStarOpen<T>(u, g_u);
+                open_u.Handle = open_queue.Insert(f_u, open_u);
+                open_lookup.Add(key_u, open_u.Handle);
             }
-            while (!open.IsEmpty)
+            while (!open_queue.IsEmpty)
             {
-                var handle_u = open.GetMin();
-                var u = handle_u.Value;
+                var handle_u = open_queue.GetMin();
+                var u = handle_u.Value.Node;
                 var key_u = key(u);
                 if (goal(u))
                 {
-                    var path = ReconstructPath(key, cameFrom, u);
-                    return new Weighted<IEnumerable<T>>(path, g[key_u]);
+                    var path = ReconstructPath(key, came_from, u);
+                    return new Weighted<IEnumerable<T>>(path, handle_u.Value.G);
                 }
-                openLookup.Remove(key_u);
-                open.Delete(handle_u);
+                open_queue.Delete(handle_u);
+                open_lookup.Remove(key_u);
                 closed.Add(key_u);
                 foreach (var uv in next(u))
                 {
@@ -153,29 +152,41 @@ namespace Shields.Graphs
                     {
                         continue;
                     }
-                    var g_v = g[key_u] + uv.Weight;
+                    var g_v = handle_u.Value.G + uv.Weight;
                     var f_v = g_v + heuristic(v);
-                    PairingHeap<double, T>.Handle handle_v;
-                    if (openLookup.TryGetValue(key_v, out handle_v))
+                    PairingHeap<double, AStarOpen<T>>.Handle handle_v;
+                    if (open_lookup.TryGetValue(key_v, out handle_v))
                     {
-                        if (open.TryDecreaseKey(handle_v, f_v))
+                        if (open_queue.TryDecreaseKey(handle_v, f_v))
                         {
-                            g[key_v] = g_v;
-                            f[key_v] = f_v;
-                            cameFrom[key_v] = u;
+                            handle_v.Value.G = g_v;
+                            came_from[key_v] = u;
                         }
                     }
                     else
                     {
-                        openLookup.Add(key_v, open.Insert(f_v, v));
-                        g[key_v] = g_v;
-                        f[key_v] = f_v;
-                        cameFrom[key_v] = u;
+                        var open_v = new AStarOpen<T>(v, g_v);
+                        open_v.Handle = open_queue.Insert(f_v, open_v);
+                        open_lookup.Add(key_v, open_v.Handle);
+                        came_from[key_v] = u;
                     }
                 }
             }
-
             return null;
+        }
+
+        private class AStarOpen<T>
+        {
+            public AStarOpen(T node, double g)
+            {
+                this.Node = node;
+                this.G = g;
+            }
+
+            public PairingHeap<double, AStarOpen<T>>.Handle Handle { get; set; }
+            public T Node { get; private set; }
+            public double G { get; set; }
+            public double F { get { return Handle.Key; } }
         }
 
         private static IWeighted<IEnumerable<T>> AStarInconsistentHeuristic<T, K>(
@@ -185,149 +196,57 @@ namespace Shields.Graphs
             Func<T, double> heuristic,
             Func<T, bool> goal)
         {
-            var cameFrom = new Dictionary<K, T>();
-            var openLookup = new Dictionary<K, PairingHeap<double, T>.Handle>();
-            var open = new PairingHeap<double, T>();
-            var g = new Dictionary<K, double>();
-            var f = new Dictionary<K, double>();
+            var came_from = new Dictionary<K, T>();
+            var open_queue = new PairingHeap<double, AStarOpen<T>>();
+            var open_lookup = new Dictionary<K, PairingHeap<double, AStarOpen<T>>.Handle>();
             foreach (var source in sources)
             {
                 var u = source.Value;
                 var key_u = key(u);
                 var g_u = source.Weight;
                 var f_u = g_u + heuristic(u);
-                openLookup.Add(key_u, open.Insert(f_u, u));
-                g[key_u] = g_u;
-                f[key_u] = f_u;
+                var open_u = new AStarOpen<T>(u, g_u);
+                open_u.Handle = open_queue.Insert(f_u, open_u);
+                open_lookup.Add(key_u, open_u.Handle);
             }
-            while (!open.IsEmpty)
+            while (!open_queue.IsEmpty)
             {
-                var handle_u = open.GetMin();
-                var u = handle_u.Value;
+                var handle_u = open_queue.GetMin();
+                var u = handle_u.Value.Node;
                 var key_u = key(u);
                 if (goal(u))
                 {
-                    var path = ReconstructPath(key, cameFrom, u);
-                    return new Weighted<IEnumerable<T>>(path, g[key_u]);
+                    var path = ReconstructPath(key, came_from, u);
+                    return new Weighted<IEnumerable<T>>(path, handle_u.Value.G);
                 }
-                openLookup.Remove(key_u);
-                open.Delete(handle_u);
+                open_queue.Delete(handle_u);
+                open_lookup.Remove(key_u);
                 foreach (var uv in next(u))
                 {
                     var v = uv.Value;
                     var key_v = key(v);
-                    var g_v = g[key_u] + uv.Weight;
+                    var g_v = handle_u.Value.G + uv.Weight;
                     var f_v = g_v + heuristic(v);
-                    PairingHeap<double, T>.Handle handle_v;
-                    if (openLookup.TryGetValue(key_v, out handle_v))
+                    PairingHeap<double, AStarOpen<T>>.Handle handle_v;
+                    if (open_lookup.TryGetValue(key_v, out handle_v))
                     {
-                        if (open.TryDecreaseKey(handle_v, f_v))
+                        if (open_queue.TryDecreaseKey(handle_v, f_v))
                         {
-                            g[key_v] = g_v;
-                            f[key_v] = f_v;
-                            cameFrom[key_v] = u;
+                            handle_v.Value.G = g_v;
+                            came_from[key_v] = u;
                         }
                     }
                     else
                     {
-                        openLookup.Add(key_v, open.Insert(f_v, v));
-                        g[key_v] = g_v;
-                        f[key_v] = f_v;
-                        cameFrom[key_v] = u;
+                        var open_v = new AStarOpen<T>(v, g_v);
+                        open_v.Handle = open_queue.Insert(f_v, open_v);
+                        open_lookup.Add(key_v, open_v.Handle);
+                        came_from[key_v] = u;
                     }
                 }
             }
-
             return null;
         }
-
-
-
-
-
-
-
-
-
-
-
-        //private class Open<T>
-        //{
-        //    public T
-        //    public T cameFrom;
-        //    public PairingHeap<double, Open<T>>.Handle handle;
-        //    public double g, f;
-        //}
-
-        //private static 
-
-        //private static IWeighted<IEnumerable<T>> AStarInconsistentHeuristic<T, K>(
-        //    IEnumerable<Weighted<T>> sources,
-        //    Func<T, K> key,
-        //    Func<T, IEnumerable<IWeighted<T>>> next,
-        //    Func<T, double> heuristic,
-        //    Func<T, bool> goal)
-        //{
-        //    var openLookup = new Dictionary<K, PairingHeap<double, Open<T>>.Handle>();
-        //    var open = new PairingHeap<double, Open<T>>();
-        //    foreach (var source in sources)
-        //    {
-        //        var u = source.Value;
-        //        var key_u = key(u);
-        //        var g_u = source.Weight;
-        //        var f_u = g_u + heuristic(u);
-        //        var o = new Open<T> { g = g_u, f = f_u };
-        //        o.handle = open.Insert(f_u, o);
-        //        openLookup.Add(key_u, o.handle);
-        //    }
-        //    while (!open.IsEmpty)
-        //    {
-        //        var handle_u = open.GetMin();
-        //        var u = handle_u.Value;
-        //        var key_u = key(u);
-        //        if (goal(u))
-        //        {
-        //            var path = ReconstructPath(key, cameFrom, u);
-        //            return new Weighted<IEnumerable<T>>(path, g[key_u]);
-        //        }
-        //        openLookup.Remove(key_u);
-        //        open.Delete(handle_u);
-        //        foreach (var uv in next(u))
-        //        {
-        //            var v = uv.Value;
-        //            var key_v = key(v);
-        //            var g_v = g[key_u] + uv.Weight;
-        //            var f_v = g_v + heuristic(v);
-        //            PairingHeap<double, T>.Handle handle_v;
-        //            if (openLookup.TryGetValue(key_v, out handle_v))
-        //            {
-        //                if (open.TryDecreaseKey(handle_v, f_v))
-        //                {
-        //                    g[key_v] = g_v;
-        //                    f[key_v] = f_v;
-        //                    cameFrom[key_v] = u;
-        //                }
-        //            }
-        //            else
-        //            {
-        //                openLookup.Add(key_v, open.Insert(f_v, v));
-        //                g[key_v] = g_v;
-        //                f[key_v] = f_v;
-        //                cameFrom[key_v] = u;
-        //            }
-        //        }
-        //    }
-
-        //    return null;
-        //}
-
-
-
-
-
-
-
-
 
         /// <summary>
         /// Performs a breadth-first traversal of a graph or digraph.
