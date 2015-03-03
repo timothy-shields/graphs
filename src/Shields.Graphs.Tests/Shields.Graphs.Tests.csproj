@@ -63,7 +63,7 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\src\Shields.Graphs\Shields.Graphs.csproj">
+    <ProjectReference Include="..\Shields.Graphs\Shields.Graphs.csproj">
       <Project>{352194a2-428d-48f6-abcc-d8eaa3bd709a}</Project>
       <Name>Shields.Graphs</Name>
     </ProjectReference>

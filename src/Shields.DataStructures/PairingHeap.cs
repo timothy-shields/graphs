@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
-namespace Shields.Graphs.DataStructures
+namespace Shields.DataStructures
 {
     public class PairingHeap<TKey, TValue> : IPriorityQueue<TKey, TValue, PairingHeap<TKey, TValue>.Handle>
         where TKey : IComparable<TKey>
@@ -138,7 +136,7 @@ namespace Shields.Graphs.DataStructures
             return node.handle;
         }
 
-        public void Delete(Handle handle)
+        public void Remove(Handle handle)
         {
             if (!handle.IsActive)
             {
@@ -184,17 +182,6 @@ namespace Shields.Graphs.DataStructures
             return root.handle;
         }
 
-        public Handle ExtractMin()
-        {
-            if (IsEmpty)
-            {
-                throw new Exception("Cannot extract from empty pairing heap.");
-            }
-            Handle h = root.handle;
-            Delete(h);
-            return h;
-        }
-
         public IEnumerable<Handle> ActiveHandles()
         {
             return GetHandles(root);
@@ -215,7 +202,7 @@ namespace Shields.Graphs.DataStructures
             }
         }
 
-        public class Handle : IHandle<TKey, TValue>
+        public class Handle : IKeyValueHandle<TKey, TValue>
         {
             internal Node node;
             public TKey Key { get { return node.key; } }

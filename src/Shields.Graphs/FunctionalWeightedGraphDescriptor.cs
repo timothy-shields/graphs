@@ -1,27 +1,24 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Shields.Graphs
 {
     /// <summary>
-    /// A functional implementation of <see cref="IWeightedGraphDescriptor&lt;T, K&gt;"/>.
+    /// A functional implementation of <see cref="IWeightedGraphDescriptor&lt;TNode, TKey&gt;"/>.
     /// </summary>
-    /// <typeparam name="T">The type of a node.</typeparam>
-    /// <typeparam name="K">The type of a node key.</typeparam>
-    public class FunctionalWeightedGraphDescriptor<T, K> : IWeightedGraphDescriptor<T, K>
+    /// <typeparam name="TNode">The type of a node.</typeparam>
+    /// <typeparam name="TKey">The type of a node key.</typeparam>
+    internal class FunctionalWeightedGraphDescriptor<TNode, TKey> : IWeightedGraphDescriptor<TNode, TKey>
     {
-        private readonly Func<T, K> key;
-        private readonly Func<T, IEnumerable<IWeighted<T>>> next;
+        private readonly Func<TNode, TKey> key;
+        private readonly Func<TNode, IEnumerable<IWeighted<TNode>>> next;
 
         /// <summary>
         /// Constructs a <see cref="FunctionalGraphDescriptor"/>.
         /// </summary>
         /// <param name="key">The function which maps a node to its key.</param>
         /// <param name="next">The function which maps a node to its adjacent nodes.</param>
-        public FunctionalWeightedGraphDescriptor(Func<T, K> key, Func<T, IEnumerable<IWeighted<T>>> next)
+        public FunctionalWeightedGraphDescriptor(Func<TNode, TKey> key, Func<TNode, IEnumerable<IWeighted<TNode>>> next)
         {
             if (key == null)
             {
@@ -40,7 +37,7 @@ namespace Shields.Graphs
         /// </summary>
         /// <param name="node">The node.</param>
         /// <returns>The key.</returns>
-        public K Key(T node)
+        public TKey Key(TNode node)
         {
             return key(node);
         }
@@ -50,7 +47,7 @@ namespace Shields.Graphs
         /// </summary>
         /// <param name="node">The node.</param>
         /// <returns>The adjacent nodes and their corresponding edge weights.</returns>
-        public IEnumerable<IWeighted<T>> Next(T node)
+        public IEnumerable<IWeighted<TNode>> Next(TNode node)
         {
             return next(node);
         }

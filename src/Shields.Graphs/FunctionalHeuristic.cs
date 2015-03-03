@@ -1,22 +1,23 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Shields.Graphs
 {
-    public class FunctionalHeuristic<T> : IHeuristic<T>
+    /// <summary>
+    /// A functional implementation of <see cref="IHeuristic&lt;TNode&gt;"/>.
+    /// </summary>
+    /// <typeparam name="TNode">The type of a node.</typeparam>
+    /// <typeparam name="TKey">The type of a node key.</typeparam>
+    internal class FunctionalHeuristic<TNode> : IHeuristic<TNode>
     {
-        private readonly Func<T, double> evaluate;
+        private readonly Func<TNode, double> evaluate;
 
-        public FunctionalHeuristic(Func<T, double> evaluate, bool isConsistent)
+        public FunctionalHeuristic(Func<TNode, double> evaluate, bool isConsistent)
         {
             this.evaluate = evaluate;
             this.IsConsistent = isConsistent;
         }
 
-        public double Evaluate(T node)
+        public double Evaluate(TNode node)
         {
             return evaluate(node);
         }

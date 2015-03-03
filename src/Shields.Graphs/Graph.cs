@@ -1,4 +1,4 @@
-﻿using Shields.Graphs.DataStructures;
+﻿using Shields.DataStructures;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,9 +10,9 @@ namespace Shields.Graphs
     /// </summary>
     public static class Graph
     {
-        private static List<T> ReconstructPath<K, T>(Func<T, K> key, Dictionary<K, T> came_from, T node)
+        private static List<TNode> ReconstructPath<TNode, TKey>(Func<TNode, TKey> key, Dictionary<TKey, TNode> came_from, TNode node)
         {
-            var path = new List<T>();
+            var path = new List<TNode>();
             path.Add(node);
             while (came_from.TryGetValue(key(node), out node))
             {
@@ -22,12 +22,26 @@ namespace Shields.Graphs
             return path;
         }
 
-        public static Weighted<IEnumerable<T>> UniformCostSearch<T, K>(this IEnumerable<IWeighted<T>> sources, Func<T, K> key, Func<T, IEnumerable<IWeighted<T>>> next, Func<T, bool> goal)
+        /// <summary>
+        /// Gets the minimum-weight path to a goal using uniform cost search.
+        /// </summary>
+        /// <typeparam name="TNode">The type of a node.</typeparam>
+        /// <typeparam name="TKey">The type of a node key.</typeparam>
+        /// <param name="sources">The set of nodes from which to start the search, weighted by their initial cost.</param>
+        /// <param name="key">The function which maps a node to its key.</param>
+        /// <param name="next">The function which maps a node to its adjacent nodes.</param>
+        /// <param name="goal">The goal predicate.</param>
+        /// <returns>The minimum-weight path, or null if none exists.</returns>
+        public static IWeighted<IEnumerable<TNode>> UniformCostSearch<TNode, TKey>(
+            this IEnumerable<IWeighted<TNode>> sources,
+            Func<TNode, TKey> key,
+            Func<TNode, IEnumerable<IWeighted<TNode>>> next,
+            Func<TNode, bool> goal)
         {
-            var came_from = new Dictionary<K, T>();
-            var open_lookup = new Dictionary<K, PairingHeap<double, T>.Handle>();
-            var open_queue = new PairingHeap<double, T>();
-            var closed = new HashSet<K>();
+            var came_from = new Dictionary<TKey, TNode>();
+            var open_lookup = new Dictionary<TKey, PairingHeap<double, TNode>.Handle>();
+            var open_queue = new PairingHeap<double, TNode>();
+            var closed = new HashSet<TKey>();
             foreach (var source in sources)
             {
                 var u = source.Value;
@@ -43,10 +57,10 @@ namespace Shields.Graphs
                 if (goal(u))
                 {
                     var path = ReconstructPath(key, came_from, u);
-                    return new Weighted<IEnumerable<T>>(path, g_u);
+                    return new Weighted<IEnumerable<TNode>>(path, g_u);
                 }
                 open_lookup.Remove(key_u);
-                open_queue.Delete(handle_u);
+                open_queue.Remove(handle_u);
                 closed.Add(key_u);
                 foreach (var uv in next(u))
                 {
@@ -56,7 +70,7 @@ namespace Shields.Graphs
                     {
                         continue;
                     }
-                    PairingHeap<double, T>.Handle v_handle;
+                    PairingHeap<double, TNode>.Handle v_handle;
                     var g_uv = g_u + uv.Weight;
                     if (open_lookup.TryGetValue(key_v, out v_handle))
                     {
@@ -76,58 +90,113 @@ namespace Shields.Graphs
         }
 
         /// <summary>
+        /// Gets the minimum-weight path to a goal using uniform cost search.
+        /// </summary>
+        /// <typeparam name="TNode">The type of a node.</typeparam>
+        /// <typeparam name="TKey">The type of a node key.</typeparam>
+        /// <param name="sources">The set of nodes from which to start the search, weighted by their initial cost.</param>
+        /// <param name="descriptor">The object describing how to navigate the weighted graph.</param>
+        /// <param name="goal">The goal predicate.</param>
+        /// <returns>The minimum-weight path, or null if none exists.</returns>
+        public static IWeighted<IEnumerable<TNode>> UniformCostSearch<TNode, TKey>(
+            this IEnumerable<IWeighted<TNode>> sources,
+            IWeightedGraphDescriptor<TNode, TKey> descriptor,
+            Func<TNode, bool> goal)
+        {
+            return UniformCostSearch(sources, descriptor.Key, descriptor.Next, goal);
+        }
+
+        /// <summary>
         /// Gets the minimum-weight path to a goal using the A* algorithm.
         /// </summary>
-        /// <typeparam name="T">The type of a node.</typeparam>
-        /// <typeparam name="K">The type of a node key.</typeparam>
+        /// <typeparam name="TNode">The type of a node.</typeparam>
+        /// <typeparam name="TKey">The type of a node key.</typeparam>
         /// <param name="sources">The set of nodes from which to start the search, weighted by their initial cost.</param>
         /// <param name="key">The function which maps a node to its key.</param>
         /// <param name="next">The function which maps a node to its adjacent nodes.</param>
-        /// <param name="heuristic">The heuristic function.</param>
         /// <param name="goal">The goal predicate.</param>
+        /// <param name="heuristic">The heuristic function.</param>
         /// <returns>The minimum-weight path, or null if none exists.</returns>
-        public static IWeighted<IEnumerable<T>> AStar<T, K>(this IEnumerable<Weighted<T>> sources, Func<T, K> key, Func<T, IEnumerable<IWeighted<T>>> next, IHeuristic<T> heuristic, Func<T, bool> goal)
+        public static IWeighted<IEnumerable<TNode>> AStar<TNode, TKey>(
+            this IEnumerable<IWeighted<TNode>> sources,
+            Func<TNode, TKey> key,
+            Func<TNode, IEnumerable<IWeighted<TNode>>> next,
+            Func<TNode, bool> goal,
+            IHeuristic<TNode> heuristic)
         {
             if (heuristic.IsConsistent)
             {
-                return AStarConsistentHeuristic<T, K>(sources, key, next, heuristic.Evaluate, goal);
+                return AStarConsistent<TNode, TKey>(sources, key, next, goal, heuristic.Evaluate);
             }
             else
             {
-                return AStarInconsistentHeuristic<T, K>(sources, key, next, heuristic.Evaluate, goal);
+                return AStarInconsistent<TNode, TKey>(sources, key, next, goal, heuristic.Evaluate);
             }
         }
 
         /// <summary>
         /// Gets the minimum-weight path to a goal using the A* algorithm.
         /// </summary>
+        /// <typeparam name="TNode">The type of a node.</typeparam>
+        /// <typeparam name="TKey">The type of a node key.</typeparam>
+        /// <param name="sources">The set of nodes from which to start the search, weighted by their initial cost.</param>
+        /// <param name="descriptor">The object describing how to navigate the weighted graph.</param>
+        /// <param name="goal">The goal predicate.</param>
+        /// <param name="heuristic">The heuristic function.</param>
+        /// <returns>The minimum-weight path, or null if none exists.</returns>
+        public static IWeighted<IEnumerable<TNode>> AStar<TNode, TKey>(
+            this IEnumerable<IWeighted<TNode>> sources,
+            IWeightedGraphDescriptor<TNode, TKey> descriptor,
+            Func<TNode, bool> goal,
+            IHeuristic<TNode> heuristic)
+        {
+            return AStar(sources, descriptor.Key, descriptor.Next, goal, heuristic);
+        }
+
+        private class AStarOpen<TNode>
+        {
+            public AStarOpen(TNode node, double g)
+            {
+                this.Node = node;
+                this.G = g;
+            }
+
+            public PairingHeap<double, AStarOpen<TNode>>.Handle Handle { get; set; }
+            public TNode Node { get; private set; }
+            public double G { get; set; }
+            public double F { get { return Handle.Key; } }
+        }
+
+        /// <summary>
+        /// Gets the minimum-weight path to a goal using the A* algorithm.
+        /// </summary>
         /// <remarks>Because the heuristic is known to be consistent, we can use the closed set optimization.</remarks>
-        /// <typeparam name="T">The type of a node.</typeparam>
-        /// <typeparam name="K">The type of a node key.</typeparam>
+        /// <typeparam name="TNode">The type of a node.</typeparam>
+        /// <typeparam name="TKey">The type of a node key.</typeparam>
         /// <param name="sources">The set of nodes from which to start the search, weighted by their initial cost.</param>
         /// <param name="key">The function which maps a node to its key.</param>
         /// <param name="next">The function which maps a node to its adjacent nodes.</param>
-        /// <param name="heuristic">The consistent heuristic function.</param>
         /// <param name="goal">The goal predicate.</param>
+        /// <param name="heuristic">The consistent heuristic function.</param>
         /// <returns>The minimum-weight path, or null if none exists.</returns>
-        private static Weighted<IEnumerable<T>> AStarConsistentHeuristic<T, K>(
-            IEnumerable<Weighted<T>> sources,
-            Func<T, K> key,
-            Func<T, IEnumerable<IWeighted<T>>> next,
-            Func<T, double> heuristic,
-            Func<T, bool> goal)
+        private static Weighted<IEnumerable<TNode>> AStarConsistent<TNode, TKey>(
+            IEnumerable<IWeighted<TNode>> sources,
+            Func<TNode, TKey> key,
+            Func<TNode, IEnumerable<IWeighted<TNode>>> next,
+            Func<TNode, bool> goal,
+            Func<TNode, double> heuristic)
         {
-            var came_from = new Dictionary<K, T>();
-            var open_queue = new PairingHeap<double, AStarOpen<T>>();
-            var open_lookup = new Dictionary<K, PairingHeap<double, AStarOpen<T>>.Handle>();
-            var closed = new HashSet<K>();
+            var came_from = new Dictionary<TKey, TNode>();
+            var open_queue = new PairingHeap<double, AStarOpen<TNode>>();
+            var open_lookup = new Dictionary<TKey, PairingHeap<double, AStarOpen<TNode>>.Handle>();
+            var closed = new HashSet<TKey>();
             foreach (var source in sources)
             {
                 var u = source.Value;
                 var key_u = key(u);
                 var g_u = source.Weight;
                 var f_u = g_u + heuristic(u);
-                var open_u = new AStarOpen<T>(u, g_u);
+                var open_u = new AStarOpen<TNode>(u, g_u);
                 open_u.Handle = open_queue.Insert(f_u, open_u);
                 open_lookup.Add(key_u, open_u.Handle);
             }
@@ -139,9 +208,9 @@ namespace Shields.Graphs
                 if (goal(u))
                 {
                     var path = ReconstructPath(key, came_from, u);
-                    return new Weighted<IEnumerable<T>>(path, handle_u.Value.G);
+                    return new Weighted<IEnumerable<TNode>>(path, handle_u.Value.G);
                 }
-                open_queue.Delete(handle_u);
+                open_queue.Remove(handle_u);
                 open_lookup.Remove(key_u);
                 closed.Add(key_u);
                 foreach (var uv in next(u))
@@ -154,7 +223,7 @@ namespace Shields.Graphs
                     }
                     var g_v = handle_u.Value.G + uv.Weight;
                     var f_v = g_v + heuristic(v);
-                    PairingHeap<double, AStarOpen<T>>.Handle handle_v;
+                    PairingHeap<double, AStarOpen<TNode>>.Handle handle_v;
                     if (open_lookup.TryGetValue(key_v, out handle_v))
                     {
                         if (open_queue.TryDecreaseKey(handle_v, f_v))
@@ -165,7 +234,7 @@ namespace Shields.Graphs
                     }
                     else
                     {
-                        var open_v = new AStarOpen<T>(v, g_v);
+                        var open_v = new AStarOpen<TNode>(v, g_v);
                         open_v.Handle = open_queue.Insert(f_v, open_v);
                         open_lookup.Add(key_v, open_v.Handle);
                         came_from[key_v] = u;
@@ -175,37 +244,35 @@ namespace Shields.Graphs
             return null;
         }
 
-        private class AStarOpen<T>
+        /// <summary>
+        /// Gets the minimum-weight path to a goal using the A* algorithm.
+        /// </summary>
+        /// <remarks>Because the heuristic is not known to be consistent, we cannot use the closed set optimization.</remarks>
+        /// <typeparam name="TNode">The type of a node.</typeparam>
+        /// <typeparam name="TKey">The type of a node key.</typeparam>
+        /// <param name="sources">The set of nodes from which to start the search, weighted by their initial cost.</param>
+        /// <param name="key">The function which maps a node to its key.</param>
+        /// <param name="next">The function which maps a node to its adjacent nodes.</param>
+        /// <param name="goal">The goal predicate.</param>
+        /// <param name="heuristic">The possibly-inconsistent heuristic function.</param>
+        /// <returns>The minimum-weight path, or null if none exists.</returns>
+        private static IWeighted<IEnumerable<TNode>> AStarInconsistent<TNode, TKey>(
+            IEnumerable<IWeighted<TNode>> sources,
+            Func<TNode, TKey> key,
+            Func<TNode, IEnumerable<IWeighted<TNode>>> next,
+            Func<TNode, bool> goal,
+            Func<TNode, double> heuristic)
         {
-            public AStarOpen(T node, double g)
-            {
-                this.Node = node;
-                this.G = g;
-            }
-
-            public PairingHeap<double, AStarOpen<T>>.Handle Handle { get; set; }
-            public T Node { get; private set; }
-            public double G { get; set; }
-            public double F { get { return Handle.Key; } }
-        }
-
-        private static IWeighted<IEnumerable<T>> AStarInconsistentHeuristic<T, K>(
-            IEnumerable<Weighted<T>> sources,
-            Func<T, K> key,
-            Func<T, IEnumerable<IWeighted<T>>> next,
-            Func<T, double> heuristic,
-            Func<T, bool> goal)
-        {
-            var came_from = new Dictionary<K, T>();
-            var open_queue = new PairingHeap<double, AStarOpen<T>>();
-            var open_lookup = new Dictionary<K, PairingHeap<double, AStarOpen<T>>.Handle>();
+            var came_from = new Dictionary<TKey, TNode>();
+            var open_queue = new PairingHeap<double, AStarOpen<TNode>>();
+            var open_lookup = new Dictionary<TKey, PairingHeap<double, AStarOpen<TNode>>.Handle>();
             foreach (var source in sources)
             {
                 var u = source.Value;
                 var key_u = key(u);
                 var g_u = source.Weight;
                 var f_u = g_u + heuristic(u);
-                var open_u = new AStarOpen<T>(u, g_u);
+                var open_u = new AStarOpen<TNode>(u, g_u);
                 open_u.Handle = open_queue.Insert(f_u, open_u);
                 open_lookup.Add(key_u, open_u.Handle);
             }
@@ -217,9 +284,9 @@ namespace Shields.Graphs
                 if (goal(u))
                 {
                     var path = ReconstructPath(key, came_from, u);
-                    return new Weighted<IEnumerable<T>>(path, handle_u.Value.G);
+                    return new Weighted<IEnumerable<TNode>>(path, handle_u.Value.G);
                 }
-                open_queue.Delete(handle_u);
+                open_queue.Remove(handle_u);
                 open_lookup.Remove(key_u);
                 foreach (var uv in next(u))
                 {
@@ -227,7 +294,7 @@ namespace Shields.Graphs
                     var key_v = key(v);
                     var g_v = handle_u.Value.G + uv.Weight;
                     var f_v = g_v + heuristic(v);
-                    PairingHeap<double, AStarOpen<T>>.Handle handle_v;
+                    PairingHeap<double, AStarOpen<TNode>>.Handle handle_v;
                     if (open_lookup.TryGetValue(key_v, out handle_v))
                     {
                         if (open_queue.TryDecreaseKey(handle_v, f_v))
@@ -238,7 +305,7 @@ namespace Shields.Graphs
                     }
                     else
                     {
-                        var open_v = new AStarOpen<T>(v, g_v);
+                        var open_v = new AStarOpen<TNode>(v, g_v);
                         open_v.Handle = open_queue.Insert(f_v, open_v);
                         open_lookup.Add(key_v, open_v.Handle);
                         came_from[key_v] = u;
@@ -251,16 +318,20 @@ namespace Shields.Graphs
         /// <summary>
         /// Performs a breadth-first traversal of a graph or digraph.
         /// </summary>
-        /// <typeparam name="T">The type of a node.</typeparam>
-        /// <typeparam name="K">The type of a node key.</typeparam>
+        /// <typeparam name="TNode">The type of a node.</typeparam>
+        /// <typeparam name="TKey">The type of a node key.</typeparam>
         /// <param name="sources">The set of nodes from which to start the traversal.</param>
         /// <param name="key">The function which maps a node to its key.</param>
         /// <param name="next">The function which maps a node to its adjacent nodes.</param>
         /// <param name="visited">The set of node keys which have already been visited. It will be updated during the method call.</param>
         /// <returns>The breadth-first traversal of nodes.</returns>
-        private static IEnumerable<T> BreadthFirstTraversal<T, K>(IEnumerable<T> sources, Func<T, K> key, Func<T, IEnumerable<T>> next, HashSet<K> visited)
+        private static IEnumerable<TNode> BreadthFirstTraversal<TNode, TKey>(
+            IEnumerable<TNode> sources,
+            Func<TNode, TKey> key,
+            Func<TNode, IEnumerable<TNode>> next,
+            HashSet<TKey> visited)
         {
-            var queue = new Queue<T>(sources);
+            var queue = new Queue<TNode>(sources);
             while (queue.Any())
             {
                 var u = queue.Dequeue();
@@ -281,26 +352,31 @@ namespace Shields.Graphs
         /// <summary>
         /// Performs a breadth-first traversal of a graph or digraph.
         /// </summary>
-        /// <typeparam name="T">The type of a node.</typeparam>
-        /// <typeparam name="K">The type of a node key.</typeparam>
+        /// <typeparam name="TNode">The type of a node.</typeparam>
+        /// <typeparam name="TKey">The type of a node key.</typeparam>
         /// <param name="sources">The set of nodes from which to start the traversal.</param>
         /// <param name="key">The function which maps a node to its key.</param>
         /// <param name="next">The function which maps a node to its adjacent nodes.</param>
         /// <returns>The breadth-first traversal of nodes.</returns>
-        public static IEnumerable<T> BreadthFirstTraversal<T, K>(this IEnumerable<T> sources, Func<T, K> key, Func<T, IEnumerable<T>> next)
+        public static IEnumerable<TNode> BreadthFirstTraversal<TNode, TKey>(
+            this IEnumerable<TNode> sources,
+            Func<TNode, TKey> key,
+            Func<TNode, IEnumerable<TNode>> next)
         {
-            return BreadthFirstTraversal(sources, key, next, new HashSet<K>());
+            return BreadthFirstTraversal(sources, key, next, new HashSet<TKey>());
         }
 
         /// <summary>
         /// Performs a breadth-first traversal of a graph or digraph.
         /// </summary>
-        /// <typeparam name="T">The type of a node.</typeparam>
-        /// <typeparam name="K">The type of a node key.</typeparam>
+        /// <typeparam name="TNode">The type of a node.</typeparam>
+        /// <typeparam name="TKey">The type of a node key.</typeparam>
         /// <param name="sources">The set of nodes from which to start the traversal.</param>
         /// <param name="descriptor">The object describing how to navigate the graph.</param>
         /// <returns>The breadth-first traversal of nodes.</returns>
-        public static IEnumerable<T> BreadthFirstTraversal<T, K>(this IEnumerable<T> sources, IGraphDescriptor<T, K> descriptor)
+        public static IEnumerable<TNode> BreadthFirstTraversal<TNode, TKey>(
+            this IEnumerable<TNode> sources,
+            IGraphDescriptor<TNode, TKey> descriptor)
         {
             return BreadthFirstTraversal(sources, descriptor.Key, descriptor.Next);
         }
@@ -308,31 +384,35 @@ namespace Shields.Graphs
         /// <summary>
         /// A stack frame in the depth-first traversal state.
         /// </summary>
-        /// <typeparam name="T">The type of a node.</typeparam>
-        private class DepthFirstTraversalState<T>
+        /// <typeparam name="TNode">The type of a node.</typeparam>
+        private class DepthFirstTraversalState<TNode>
         {
-            public T Node;
-            public IEnumerator<T> NextEnumerator;
+            public TNode Node;
+            public IEnumerator<TNode> NextEnumerator;
         }
 
         /// <summary>
         /// Performs a depth-first traversal of a graph or digraph.
         /// </summary>
-        /// <typeparam name="T">The type of a node.</typeparam>
-        /// <typeparam name="K">The type of a node key.</typeparam>
+        /// <typeparam name="TNode">The type of a node.</typeparam>
+        /// <typeparam name="TKey">The type of a node key.</typeparam>
         /// <param name="sources">The set of nodes from which to start the traversal.</param>
         /// <param name="key">The function which maps a node to its key.</param>
         /// <param name="next">The function which maps a node to its adjacent nodes.</param>
         /// <param name="visited">The set of node keys which have already been visited. It will be updated during the method call.</param>
         /// <returns>The depth-first traversal of nodes.</returns>
-        private static IEnumerable<T> DepthFirstTraversal<T, K>(IEnumerable<T> sources, Func<T, K> key, Func<T, IEnumerable<T>> next, HashSet<K> visited)
+        private static IEnumerable<TNode> DepthFirstTraversal<TNode, TKey>(
+            IEnumerable<TNode> sources,
+            Func<TNode, TKey> key,
+            Func<TNode, IEnumerable<TNode>> next,
+            HashSet<TKey> visited)
         {
-            var stack = new Stack<DepthFirstTraversalState<T>>();
+            var stack = new Stack<DepthFirstTraversalState<TNode>>();
             try
             {
                 foreach (var source in sources)
                 {
-                    stack.Push(new DepthFirstTraversalState<T> { Node = source });
+                    stack.Push(new DepthFirstTraversalState<TNode> { Node = source });
                     while (stack.Any())
                     {
                         var state = stack.Peek();
@@ -354,7 +434,7 @@ namespace Shields.Graphs
                             {
                                 if (!visited.Contains(key(state.NextEnumerator.Current)))
                                 {
-                                    stack.Push(new DepthFirstTraversalState<T> { Node = state.NextEnumerator.Current });
+                                    stack.Push(new DepthFirstTraversalState<TNode> { Node = state.NextEnumerator.Current });
                                 }
                             }
                             else
@@ -382,31 +462,36 @@ namespace Shields.Graphs
         /// <summary>
         /// Performs a depth-first traversal of a graph or digraph.
         /// </summary>
-        /// <typeparam name="T">The type of a node.</typeparam>
-        /// <typeparam name="K">The type of a node key.</typeparam>
+        /// <typeparam name="TNode">The type of a node.</typeparam>
+        /// <typeparam name="TKey">The type of a node key.</typeparam>
         /// <param name="sources">The set of nodes from which to start the traversal.</param>
         /// <param name="key">The function which maps a node to its key.</param>
         /// <param name="next">The function which maps a node to its adjacent nodes.</param>
         /// <returns>The depth-first traversal of nodes.</returns>
-        public static IEnumerable<T> DepthFirstTraversal<T, K>(this IEnumerable<T> sources, Func<T, K> key, Func<T, IEnumerable<T>> next)
+        public static IEnumerable<TNode> DepthFirstTraversal<TNode, TKey>(
+            this IEnumerable<TNode> sources,
+            Func<TNode, TKey> key,
+            Func<TNode, IEnumerable<TNode>> next)
         {
-            return DepthFirstTraversal(sources, key, next, new HashSet<K>());
+            return DepthFirstTraversal(sources, key, next, new HashSet<TKey>());
         }
 
         /// <summary>
         /// Performs a depth-first traversal of a graph or digraph.
         /// </summary>
-        /// <typeparam name="T">The type of a node.</typeparam>
-        /// <typeparam name="K">The type of a node key.</typeparam>
+        /// <typeparam name="TNode">The type of a node.</typeparam>
+        /// <typeparam name="TKey">The type of a node key.</typeparam>
         /// <param name="sources">The set of nodes from which to start the traversal.</param>
         /// <param name="descriptor">The object describing how to navigate the graph.</param>
         /// <returns>The depth-first traversal of nodes.</returns>
-        public static IEnumerable<T> DepthFirstTraversal<T, K>(this IEnumerable<T> sources, IGraphDescriptor<T, K> descriptor)
+        public static IEnumerable<TNode> DepthFirstTraversal<TNode, TKey>(
+            this IEnumerable<TNode> sources,
+            IGraphDescriptor<TNode, TKey> descriptor)
         {
             return DepthFirstTraversal(sources, descriptor.Key, descriptor.Next);
         }
 
-        private static IEnumerable<T> Return<T>(T item)
+        private static IEnumerable<TNode> Return<TNode>(TNode item)
         {
             yield return item;
         }
@@ -414,15 +499,18 @@ namespace Shields.Graphs
         /// <summary>
         /// Gets the connected components of a graph. For digraphs use <see cref="StronglyConnectedComponents"/>.
         /// </summary>
-        /// <typeparam name="T">The type of a node.</typeparam>
-        /// <typeparam name="K">The type of a node key.</typeparam>
+        /// <typeparam name="TNode">The type of a node.</typeparam>
+        /// <typeparam name="TKey">The type of a node key.</typeparam>
         /// <param name="nodes">The set of nodes.</param>
         /// <param name="key">The function which maps a node to its key.</param>
         /// <param name="next">The function which maps a node to its adjacent nodes.</param>
         /// <returns>The connected components of the graph.</returns>
-        public static IEnumerable<IEnumerable<T>> ConnectedComponents<T, K>(this IEnumerable<T> nodes, Func<T, K> key, Func<T, IEnumerable<T>> next)
+        public static IEnumerable<IEnumerable<TNode>> ConnectedComponents<TNode, TKey>(
+            this IEnumerable<TNode> nodes,
+            Func<TNode, TKey> key,
+            Func<TNode, IEnumerable<TNode>> next)
         {
-            var visited = new HashSet<K>();
+            var visited = new HashSet<TKey>();
             foreach (var node in nodes)
             {
                 if (visited.Contains(key(node)))
@@ -436,12 +524,14 @@ namespace Shields.Graphs
         /// <summary>
         /// Gets the connected components of a graph. For digraphs use <see cref="StronglyConnectedComponents"/>.
         /// </summary>
-        /// <typeparam name="T">The type of a node.</typeparam>
-        /// <typeparam name="K">The type of a node key.</typeparam>
+        /// <typeparam name="TNode">The type of a node.</typeparam>
+        /// <typeparam name="TKey">The type of a node key.</typeparam>
         /// <param name="nodes">The set of nodes.</param>
         /// <param name="descriptor">The object describing how to navigate the graph.</param>
         /// <returns>The connected components of the graph.</returns>
-        public static IEnumerable<IEnumerable<T>> ConnectedComponents<T, K>(this IEnumerable<T> nodes, IGraphDescriptor<T, K> descriptor)
+        public static IEnumerable<IEnumerable<TNode>> ConnectedComponents<TNode, TKey>(
+            this IEnumerable<TNode> nodes,
+            IGraphDescriptor<TNode, TKey> descriptor)
         {
             return ConnectedComponents(nodes, descriptor.Key, descriptor.Next);
         }

@@ -46,11 +46,17 @@ namespace Shields.Graphs.Tests
             };
         }
 
-        private static IWeighted<T> W<T>(T node, double weight)
+        /// <summary>
+        /// Shorthand for Weighted(value, weight) creation.
+        /// </summary>
+        private static IWeighted<T> W<T>(T value, double weight)
         {
-            return new Weighted<T>(node, weight);
+            return new Weighted<T>(value, weight);
         }
 
+        /// <summary>
+        /// Shorthand for List&lt;T&gt; creation.
+        /// </summary>
         private static List<T> A<T>(params T[] items)
         {
             return items.ToList();
@@ -197,7 +203,7 @@ namespace Shields.Graphs.Tests
             char start, char goal,
             Dictionary<char, IEnumerable<IWeighted<char>>> next)
         {
-            var descriptor = GraphDescriptor.CreateWeighted(n => n, Function(next));
+            var descriptor = WeightedGraphDescriptor.Create(n => n, Function(next));
 
             return Graph.UniformCostSearch(
                 EnumerableEx.Return(new Weighted<char>(start, 0)),
@@ -211,14 +217,14 @@ namespace Shields.Graphs.Tests
             Dictionary<char, IEnumerable<IWeighted<char>>> next,
             bool isConsistent, Dictionary<char, double> heuristic)
         {
-            var descriptor = GraphDescriptor.CreateWeighted(n => n, Function(next));
+            var descriptor = WeightedGraphDescriptor.Create(n => n, Function(next));
 
             return Graph.AStar(
                 EnumerableEx.Return(new Weighted<char>(start, 0)),
                 descriptor.Key,
                 descriptor.Next,
-                Heuristic.Create(F(heuristic), isConsistent),
-                n => n == goal);
+                n => n == goal,
+                Heuristic.Create(F(heuristic), isConsistent));
         }
     }
 }

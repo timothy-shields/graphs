@@ -1,21 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Shields.Graphs
 {
+    /// <summary>
+    /// Provides methods for constructing graph descriptors.
+    /// </summary>
     public static class GraphDescriptor
     {
-        public static IGraphDescriptor<T, K> Create<T, K>(Func<T, K> key, Func<T, IEnumerable<T>> next)
+        public static IGraphDescriptor<TNode, TKey> Create<TNode, TKey>(Func<TNode, TKey> key, Func<TNode, IEnumerable<TNode>> next)
         {
-            return new FunctionalGraphDescriptor<T, K>(key, next);
-        }
-
-        public static IWeightedGraphDescriptor<T, K> CreateWeighted<T, K>(Func<T, K> key, Func<T, IEnumerable<IWeighted<T>>> next)
-        {
-            return new FunctionalWeightedGraphDescriptor<T, K>(key, next);
+            return new FunctionalGraphDescriptor<TNode, TKey>(key, next);
         }
     }
 }
