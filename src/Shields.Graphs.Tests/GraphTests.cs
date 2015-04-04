@@ -199,6 +199,25 @@ namespace Shields.Graphs.Tests
             Assert.AreEqual(2, path.Weight);
         }
 
+        [TestMethod]
+        public void OrderTopologicallyWorks()
+        {
+            var topsort = Graph.OrderTopologically(
+                A(2, 3, 5, 7, 8, 9, 10, 11),
+                n => n,
+                Function(new Dictionary<int, IEnumerable<int>>
+                {
+                    { 7, A(11, 8) },
+                    { 5, A(11) },
+                    { 3, A(8, 10) },
+                    { 11, A(2, 9, 10) },
+                    { 8, A(9) },
+                    //{ 9, A(5) }
+                })).ToList();
+
+            topsort = topsort;
+        }
+
         private IWeighted<IEnumerable<char>> UniformCostSearch(
             char start, char goal,
             Dictionary<char, IEnumerable<IWeighted<char>>> next)

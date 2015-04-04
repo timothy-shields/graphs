@@ -535,5 +535,74 @@ namespace Shields.Graphs
         {
             return ConnectedComponents(nodes, descriptor.Key, descriptor.Next);
         }
+
+        public static IEnumerable<TNode> OrderTopologically<TNode, TKey>(
+            this IEnumerable<TNode> nodes,
+            IGraphDescriptor<TNode, TKey> descriptor)
+        {
+            return OrderTopologically(nodes, descriptor.Key, descriptor.Next);
+        }
+
+        private class NodeCount<TNode>
+        {
+            public TNode Node;
+            public int Count;
+        }
+
+        public static IEnumerable<TNode> OrderTopologically<TNode, TKey>(
+            this IEnumerable<TNode> nodes,
+            Func<TNode, TKey> key,
+            Func<TNode, IEnumerable<TNode>> next)
+        {
+            var incoming = new Dictionary<TKey, NodeCount<TNode>>();
+            foreach (var u in nodes)
+            {
+                var key_u = key(u);
+                if (!incoming.ContainsKey(key_u))
+                {
+                    incoming.Add(key_u, new NodeCount<TNode> { Node = u, Count = 0 });
+                }
+                foreach (var v in next(u))
+                {
+                    var key_v = key(v);
+                    NodeCount<TNode> data;
+                    if (!incoming.TryGetValue(key_v, out data))
+                    {
+                        data = new NodeCount<TNode> { Node = v, Count = 0 };
+                        incoming.Add(key_v, data);
+                    }
+                    data.Count++;
+                }
+            }
+            var S = new Queue<TNode>(incoming.Values
+                .Where(data => data.Count == 0)
+                .Select(data => data.Node)
+                .ToList());
+            foreach (var u in S)
+            {
+                incoming.Remove(key(u));
+            }
+            while (S.Count > 0)
+            {
+                var u = S.Dequeue();
+                yield return u;
+                foreach (var v in next(u))
+                {
+                    var key_v = key(v);
+                    var data = incoming[key_v];
+                    data.Count--;
+                    if (data.Count == 0)
+                    {
+                        incoming.Remove(key_v);
+                        S.Enqueue(v);
+                    }
+                }
+            }
+
+            if (incoming.Count > 0)
+            {
+                throw new InvalidOperationException("The graph contains a cycle.");
+            }
+        }
     }
 }
