@@ -39,6 +39,7 @@
     <Compile Include="FunctionalGraphDescriptor.cs" />
     <Compile Include="FunctionalHeuristic.cs" />
     <Compile Include="Graph.cs" />
+    <Compile Include="GraphCycleException.cs" />
     <Compile Include="GraphDescriptor.cs" />
     <Compile Include="Heuristic.cs" />
     <Compile Include="IWeighted.cs" />

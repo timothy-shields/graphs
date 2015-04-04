@@ -199,23 +199,97 @@ namespace Shields.Graphs.Tests
             Assert.AreEqual(2, path.Weight);
         }
 
+        //[TestMethod]
+        //public void MyTestMethod()
+        //{
+        //    var sb = new System.Text.StringBuilder();
+        //    var nodes = Enumerable.Range(1, 6).ToList();
+        //    foreach (var descriptor in GraphGenerator.AllDirectedAcyclicGraphs(nodes))
+        //    {
+        //        foreach (var u in nodes)
+        //        {
+        //            sb.Append(u);
+        //            sb.Append(':');
+        //            foreach (var v in descriptor.Next(u))
+        //            {
+        //                sb.Append(' ');
+        //                sb.Append(v);
+        //            }
+        //            sb.AppendLine();
+        //        }
+        //        sb.AppendLine();
+        //    }
+        //    var s = sb.ToString();
+        //    s = s;
+        //}
+
         [TestMethod]
         public void OrderTopologicallyWorks()
         {
-            var topsort = Graph.OrderTopologically(
-                A(2, 3, 5, 7, 8, 9, 10, 11),
-                n => n,
-                Function(new Dictionary<int, IEnumerable<int>>
-                {
-                    { 7, A(11, 8) },
-                    { 5, A(11) },
-                    { 3, A(8, 10) },
-                    { 11, A(2, 9, 10) },
-                    { 8, A(9) },
-                    //{ 9, A(5) }
-                })).ToList();
+            var nodes = A(2, 3, 5, 7, 8, 9, 10, 11);
+            var edges = new Dictionary<int, IEnumerable<int>>
+            {
+                { 7, A(11, 8) },
+                { 5, A(11) },
+                { 3, A(8, 10) },
+                { 11, A(2, 9, 10) },
+                { 8, A(9) }
+            };
 
-            topsort = topsort;
+            var topsort = nodes.OrderTopologically(n => n, Function(edges)).ToList();
+
+            CollectionAssert.AreEqual(nodes.OrderBy(n => n).ToList(), topsort.OrderBy(n => n).ToList());
+            foreach (var u in edges.Keys)
+            {
+                foreach (var v in edges[u])
+                {
+                    Assert.IsTrue(topsort.IndexOf(u) < topsort.IndexOf(v));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Property-based test of OrderTopologically. A topsort should contain the same
+        /// set of nodes and should satisfy all of the constraints indicated by the edges.
+        /// </summary>
+        [TestMethod]
+        public void OrderTopologicallyWorksOnAllSmallDags()
+        {
+            for (int order = 0; order <= 6; order++)
+            {
+                var nodes = Enumerable.Range('A', order).ToList();
+                foreach (var descriptor in GraphGenerator.AllDirectedAcyclicGraphs(nodes))
+                {
+                    var topsort = nodes.OrderTopologically(descriptor).ToList();
+
+                    CollectionAssert.AreEqual(nodes.OrderBy(u => u).ToList(), topsort.OrderBy(u => u).ToList());
+                    foreach (var u in nodes)
+                    {
+                        foreach (var v in descriptor.Next(u))
+                        {
+                            Assert.IsTrue(topsort.IndexOf(u) < topsort.IndexOf(v));
+                        }
+                    }
+                }
+            }
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(GraphCycleException))]
+        public void OrderTopologicallyThrowsGraphCycleException()
+        {
+            var nodes = A(2, 3, 5, 7, 8, 9, 10, 11);
+            var edges = new Dictionary<int, IEnumerable<int>>
+            {
+                { 7, A(11, 8) },
+                { 5, A(11) },
+                { 3, A(8, 10) },
+                { 11, A(2, 9, 10) },
+                { 8, A(9) },
+                { 9, A(5) }
+            };
+
+            var topsort = nodes.OrderTopologically(n => n, Function(edges)).ToList();
         }
 
         private IWeighted<IEnumerable<char>> UniformCostSearch(

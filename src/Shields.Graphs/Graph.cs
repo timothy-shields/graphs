@@ -536,19 +536,22 @@ namespace Shields.Graphs
             return ConnectedComponents(nodes, descriptor.Key, descriptor.Next);
         }
 
-        public static IEnumerable<TNode> OrderTopologically<TNode, TKey>(
-            this IEnumerable<TNode> nodes,
-            IGraphDescriptor<TNode, TKey> descriptor)
-        {
-            return OrderTopologically(nodes, descriptor.Key, descriptor.Next);
-        }
-
         private class NodeCount<TNode>
         {
             public TNode Node;
             public int Count;
         }
 
+        /// <summary>
+        /// Sorts the nodes of a graph in topological order.
+        /// </summary>
+        /// <typeparam name="TNode">The type of a node.</typeparam>
+        /// <typeparam name="TKey">The type of a node key.</typeparam>
+        /// <param name="nodes">The set of nodes.</param>
+        /// <param name="key">The function which maps a node to its key.</param>
+        /// <param name="next">The function which maps a node to its adjacent nodes.</param>
+        /// <returns>The topologically sorted nodes.</returns>
+        /// <exception cref="Shields.Graphs.GraphCycleException">This exception is thrown if the graph contains a cycle.</exception>
         public static IEnumerable<TNode> OrderTopologically<TNode, TKey>(
             this IEnumerable<TNode> nodes,
             Func<TNode, TKey> key,
@@ -598,11 +601,25 @@ namespace Shields.Graphs
                     }
                 }
             }
-
             if (incoming.Count > 0)
             {
-                throw new InvalidOperationException("The graph contains a cycle.");
+                throw new GraphCycleException();
             }
+        }
+
+        /// <summary>
+        /// Sorts the nodes of a graph in topological order.
+        /// </summary>
+        /// <typeparam name="TNode">The type of a node.</typeparam>
+        /// <typeparam name="TKey">The type of a node key.</typeparam>
+        /// <param name="descriptor">The object describing how to navigate the graph.</param>
+        /// <returns>The topologically sorted nodes.</returns>
+        /// <exception cref="Shields.Graphs.GraphCycleException">This exception is thrown if the graph contains a cycle.</exception>
+        public static IEnumerable<TNode> OrderTopologically<TNode, TKey>(
+            this IEnumerable<TNode> nodes,
+            IGraphDescriptor<TNode, TKey> descriptor)
+        {
+            return OrderTopologically(nodes, descriptor.Key, descriptor.Next);
         }
     }
 }
