@@ -39,11 +39,11 @@
       <HintPath>..\packages\Combinatorics.1.0.3.2\lib\net40\Combinatorics.dll</HintPath>
     </Reference>
     <Reference Include="Moq">
-      <HintPath>..\src\packages\Moq.4.2.1502.0911\lib\net40\Moq.dll</HintPath>
+      <HintPath>..\packages\Moq.4.2.1502.0911\lib\net40\Moq.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Interactive">
-      <HintPath>..\src\packages\Ix-Main.1.2.3\lib\net45\System.Interactive.dll</HintPath>
+      <HintPath>..\packages\Ix-Main.1.2.3\lib\net45\System.Interactive.dll</HintPath>
     </Reference>
   </ItemGroup>
   <Choose>
