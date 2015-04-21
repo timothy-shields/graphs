@@ -39,18 +39,18 @@ namespace Shields.Graphs
             Func<TNode, bool> goal)
         {
             var came_from = new Dictionary<TKey, TNode>();
-            var open_lookup = new Dictionary<TKey, PairingHeap<double, TNode>.Handle>();
-            var open_queue = new PairingHeap<double, TNode>();
+            var open_lookup = new Dictionary<TKey, IPriorityQueueHandle<double, TNode>>();
+            IPriorityQueue<double, TNode> open_queue = new PairingHeap<double, TNode>();
             var closed = new HashSet<TKey>();
             foreach (var source in sources)
             {
                 var u = source.Value;
                 var g_u = source.Weight;
-                open_lookup.Add(key(u), open_queue.Insert(g_u, u));
+                open_lookup.Add(key(u), open_queue.Add(g_u, u));
             }
-            while (!open_queue.IsEmpty)
+            while (open_queue.Count > 0)
             {
-                var handle_u = open_queue.GetMin();
+                var handle_u = open_queue.Min;
                 var u = handle_u.Value;
                 var key_u = key(u);
                 var g_u = handle_u.Key;
@@ -70,18 +70,19 @@ namespace Shields.Graphs
                     {
                         continue;
                     }
-                    PairingHeap<double, TNode>.Handle v_handle;
+                    IPriorityQueueHandle<double, TNode> v_handle;
                     var g_uv = g_u + uv.Weight;
                     if (open_lookup.TryGetValue(key_v, out v_handle))
                     {
-                        if (open_queue.TryDecreaseKey(v_handle, g_uv))
+                        if (g_uv < v_handle.Key)
                         {
+                            open_queue.UpdateKey(v_handle, g_uv);
                             came_from[key_v] = u;
                         }
                     }
                     else
                     {
-                        open_lookup.Add(key_v, open_queue.Insert(g_uv, v));
+                        open_lookup.Add(key_v, open_queue.Add(g_uv, v));
                         came_from[key_v] = u;
                     }
                 }
@@ -161,7 +162,7 @@ namespace Shields.Graphs
                 this.G = g;
             }
 
-            public PairingHeap<double, AStarOpen<TNode>>.Handle Handle { get; set; }
+            public IPriorityQueueHandle<double, AStarOpen<TNode>> Handle { get; set; }
             public TNode Node { get; private set; }
             public double G { get; set; }
             public double F { get { return Handle.Key; } }
@@ -187,8 +188,8 @@ namespace Shields.Graphs
             Func<TNode, double> heuristic)
         {
             var came_from = new Dictionary<TKey, TNode>();
-            var open_queue = new PairingHeap<double, AStarOpen<TNode>>();
-            var open_lookup = new Dictionary<TKey, PairingHeap<double, AStarOpen<TNode>>.Handle>();
+            IPriorityQueue<double, AStarOpen<TNode>> open_queue = new PairingHeap<double, AStarOpen<TNode>>();
+            var open_lookup = new Dictionary<TKey, IPriorityQueueHandle<double, AStarOpen<TNode>>>();
             var closed = new HashSet<TKey>();
             foreach (var source in sources)
             {
@@ -197,12 +198,12 @@ namespace Shields.Graphs
                 var g_u = source.Weight;
                 var f_u = g_u + heuristic(u);
                 var open_u = new AStarOpen<TNode>(u, g_u);
-                open_u.Handle = open_queue.Insert(f_u, open_u);
+                open_u.Handle = open_queue.Add(f_u, open_u);
                 open_lookup.Add(key_u, open_u.Handle);
             }
-            while (!open_queue.IsEmpty)
+            while (open_queue.Count > 0)
             {
-                var handle_u = open_queue.GetMin();
+                var handle_u = open_queue.Min;
                 var u = handle_u.Value.Node;
                 var key_u = key(u);
                 if (goal(u))
@@ -223,11 +224,12 @@ namespace Shields.Graphs
                     }
                     var g_v = handle_u.Value.G + uv.Weight;
                     var f_v = g_v + heuristic(v);
-                    PairingHeap<double, AStarOpen<TNode>>.Handle handle_v;
+                    IPriorityQueueHandle<double, AStarOpen<TNode>> handle_v;
                     if (open_lookup.TryGetValue(key_v, out handle_v))
                     {
-                        if (open_queue.TryDecreaseKey(handle_v, f_v))
+                        if (f_v < handle_v.Key)
                         {
+                            open_queue.UpdateKey(handle_v, f_v);
                             handle_v.Value.G = g_v;
                             came_from[key_v] = u;
                         }
@@ -235,7 +237,7 @@ namespace Shields.Graphs
                     else
                     {
                         var open_v = new AStarOpen<TNode>(v, g_v);
-                        open_v.Handle = open_queue.Insert(f_v, open_v);
+                        open_v.Handle = open_queue.Add(f_v, open_v);
                         open_lookup.Add(key_v, open_v.Handle);
                         came_from[key_v] = u;
                     }
@@ -264,8 +266,8 @@ namespace Shields.Graphs
             Func<TNode, double> heuristic)
         {
             var came_from = new Dictionary<TKey, TNode>();
-            var open_queue = new PairingHeap<double, AStarOpen<TNode>>();
-            var open_lookup = new Dictionary<TKey, PairingHeap<double, AStarOpen<TNode>>.Handle>();
+            IPriorityQueue<double, AStarOpen<TNode>> open_queue = new PairingHeap<double, AStarOpen<TNode>>();
+            var open_lookup = new Dictionary<TKey, IPriorityQueueHandle<double, AStarOpen<TNode>>>();
             foreach (var source in sources)
             {
                 var u = source.Value;
@@ -273,12 +275,12 @@ namespace Shields.Graphs
                 var g_u = source.Weight;
                 var f_u = g_u + heuristic(u);
                 var open_u = new AStarOpen<TNode>(u, g_u);
-                open_u.Handle = open_queue.Insert(f_u, open_u);
+                open_u.Handle = open_queue.Add(f_u, open_u);
                 open_lookup.Add(key_u, open_u.Handle);
             }
-            while (!open_queue.IsEmpty)
+            while (open_queue.Count > 0)
             {
-                var handle_u = open_queue.GetMin();
+                var handle_u = open_queue.Min;
                 var u = handle_u.Value.Node;
                 var key_u = key(u);
                 if (goal(u))
@@ -294,11 +296,12 @@ namespace Shields.Graphs
                     var key_v = key(v);
                     var g_v = handle_u.Value.G + uv.Weight;
                     var f_v = g_v + heuristic(v);
-                    PairingHeap<double, AStarOpen<TNode>>.Handle handle_v;
+                    IPriorityQueueHandle<double, AStarOpen<TNode>> handle_v;
                     if (open_lookup.TryGetValue(key_v, out handle_v))
                     {
-                        if (open_queue.TryDecreaseKey(handle_v, f_v))
+                        if (f_v < handle_v.Key)
                         {
+                            open_queue.UpdateKey(handle_v, f_v);
                             handle_v.Value.G = g_v;
                             came_from[key_v] = u;
                         }
@@ -306,7 +309,7 @@ namespace Shields.Graphs
                     else
                     {
                         var open_v = new AStarOpen<TNode>(v, g_v);
-                        open_v.Handle = open_queue.Insert(f_v, open_v);
+                        open_v.Handle = open_queue.Add(f_v, open_v);
                         open_lookup.Add(key_v, open_v.Handle);
                         came_from[key_v] = u;
                     }

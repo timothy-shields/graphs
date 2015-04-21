@@ -5,8 +5,6 @@ VisualStudioVersion = 12.0.31101.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shields.Graphs", "Shields.Graphs\Shields.Graphs.csproj", "{352194A2-428D-48F6-ABCC-D8EAA3BD709A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shields.DataStructures", "Shields.DataStructures\Shields.DataStructures.csproj", "{AA9D8AB2-38CB-43B4-81DB-79BE70AB93CD}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shields.Graphs.Tests", "Shields.Graphs.Tests\Shields.Graphs.Tests.csproj", "{DEC8173F-E2E2-441F-BE53-34F5F8806D17}"
 EndProject
 Global
@@ -19,10 +17,6 @@ Global
 		{352194A2-428D-48F6-ABCC-D8EAA3BD709A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{352194A2-428D-48F6-ABCC-D8EAA3BD709A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{352194A2-428D-48F6-ABCC-D8EAA3BD709A}.Release|Any CPU.Build.0 = Release|Any CPU
-		{AA9D8AB2-38CB-43B4-81DB-79BE70AB93CD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{AA9D8AB2-38CB-43B4-81DB-79BE70AB93CD}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{AA9D8AB2-38CB-43B4-81DB-79BE70AB93CD}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{AA9D8AB2-38CB-43B4-81DB-79BE70AB93CD}.Release|Any CPU.Build.0 = Release|Any CPU
 		{DEC8173F-E2E2-441F-BE53-34F5F8806D17}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{DEC8173F-E2E2-441F-BE53-34F5F8806D17}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DEC8173F-E2E2-441F-BE53-34F5F8806D17}.Release|Any CPU.ActiveCfg = Release|Any CPU
