@@ -29,6 +29,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <DocumentationFile>bin\Release\Shields.Graphs.xml</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Shields.DataStructures, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">

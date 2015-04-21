@@ -1,1 +1,1 @@
-call nuget pack Shields.Graphs\Shields.Graphs.csproj -IncludeReferencedProjects -Verbosity detailed
+call nuget pack Shields.Graphs\Shields.Graphs.csproj -IncludeReferencedProjects -Prop Configuration=Release -Verbosity detailed
