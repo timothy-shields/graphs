@@ -46,6 +46,17 @@ namespace Shields.Graphs.Tests
             };
         }
 
+        private static Func<T, U> CallAtMostOnce<T, U>(Func<T, U> f)
+        {
+            var set = new HashSet<T>();
+            return x =>
+            {
+                bool added = set.Add(x);
+                Assert.IsTrue(added);
+                return f(x);
+            };
+        }
+
         /// <summary>
         /// Shorthand for Weighted(value, weight) creation.
         /// </summary>
@@ -60,6 +71,17 @@ namespace Shields.Graphs.Tests
         private static List<T> A<T>(params T[] items)
         {
             return items.ToList();
+        }
+
+        [TestMethod]
+        public void BreadthFirstTraversalCallsNextAtMostOncePerNode()
+        {
+            Graph.BreadthFirstTraversal(A(0), n => n, CallAtMostOnce(Function(new Dictionary<int, IEnumerable<int>>
+            {
+                { 0, A(1, 2) },
+                { 1, A(2, 3) },
+                { 2, A(3) }
+            }))).ToList();
         }
 
         [TestMethod]

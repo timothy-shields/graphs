@@ -6,7 +6,6 @@ namespace Shields.Graphs
     /// A functional implementation of <see cref="IHeuristic&lt;TNode&gt;"/>.
     /// </summary>
     /// <typeparam name="TNode">The type of a node.</typeparam>
-    /// <typeparam name="TKey">The type of a node key.</typeparam>
     internal class FunctionalHeuristic<TNode> : IHeuristic<TNode>
     {
         private readonly Func<TNode, double> evaluate;

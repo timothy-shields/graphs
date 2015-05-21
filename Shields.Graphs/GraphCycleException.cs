@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace Shields.Graphs
 {
+    /// <summary>
+    /// The exception that is thrown when an unexpected cycle is found in a graph.
+    /// </summary>
     [Serializable]
     public class GraphCycleException : Exception
     {

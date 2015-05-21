@@ -341,14 +341,14 @@ namespace Shields.Graphs
                 if (visited.Add(key(u)))
                 {
                     yield return u;
-                }
-                foreach (var v in next(u))
-                {
-                    if (!visited.Contains(key(v)))
+                    foreach (var v in next(u))
                     {
-                        queue.Enqueue(v);
+                        if (!visited.Contains(key(v)))
+                        {
+                            queue.Enqueue(v);
+                        }
                     }
-                }
+                } 
             }
         }
 
@@ -615,6 +615,7 @@ namespace Shields.Graphs
         /// </summary>
         /// <typeparam name="TNode">The type of a node.</typeparam>
         /// <typeparam name="TKey">The type of a node key.</typeparam>
+        /// <param name="nodes">The set of nodes.</param>
         /// <param name="descriptor">The object describing how to navigate the graph.</param>
         /// <returns>The topologically sorted nodes.</returns>
         /// <exception cref="Shields.Graphs.GraphCycleException">This exception is thrown if the graph contains a cycle.</exception>
